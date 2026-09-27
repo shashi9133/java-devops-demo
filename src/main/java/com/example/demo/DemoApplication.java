@@ -15,6 +15,6 @@ public class DemoApplication {
 
     @GetMapping("/hello")
     public String hello() {
-        return "Hello from Spring Boot  - Version 2 CI/CD  is working!";
+        return "Hello from Spring Boot  - Version 3 CI/CD  is working!";
     }
 }
