@@ -15,6 +15,6 @@ public class DemoApplication {
 
     @GetMapping("/hello")
     public String hello() {
-        return "Hello from Spring Boot on EC2 - CI CD working!";
+        return "Hello from Spring Boot  - CI/CD pipeline is working!";
     }
 }
