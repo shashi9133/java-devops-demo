@@ -107,7 +107,7 @@ pipeline {
 
     post {
         success {
-            echo '=== CI/CD Pipeline Completed Successfully ==='
+            echo '=== CI/CD Pipeline is Completed Successfully ==='
         }
 
         failure {
