@@ -2,13 +2,16 @@ pipeline {
 
     agent any
 
-    stages {
+    environment {
+        DOCKER_IMAGE = 'shashinani/java-devops-demo'
+    }
 
-        
+    stages {
 
         stage('Build') {
             steps {
                 echo '=== Building Spring Boot application ==='
+
                 sh 'mvn clean package -DskipTests'
             }
         }
@@ -16,53 +19,78 @@ pipeline {
         stage('Docker Build') {
             steps {
                 echo '=== Building Docker image ==='
-                sh 'docker build -t java-devops-demo:latest .'
+
+                sh """
+                    docker build \
+                        -t ${DOCKER_IMAGE}:build-${BUILD_NUMBER} \
+                        -t ${DOCKER_IMAGE}:latest .
+                """
             }
         }
-        
+
         stage('Docker Push') {
-    steps {
-        echo '=== Pushing Docker image to Docker Hub ==='
+            steps {
+                echo '=== Pushing Docker image to Docker Hub ==='
 
-        withCredentials([
-            usernamePassword(
-                credentialsId: 'dockeerhub-credentials',
-                usernameVariable: 'DOCKER_USERNAME',
-                passwordVariable: 'DOCKER_PASSWORD'
-            )
-        ]) {
-            sh '''
-                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockeerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
 
-                docker tag java-devops-demo:latest $DOCKER_USERNAME/java-devops-demo:build-${BUILD_NUMBER}
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USERNAME" \
+                            --password-stdin
 
-                docker push $DOCKER_USERNAME/java-devops-demo:build-${BUILD_NUMBER}
-                
-                docker tag java-devops-demo:latest $DOCKER_USERNAME/java-devops-demo:latest
-                
-                docker push $DOCKER_USERNAME/java-devops-demo:latest
+                        docker push ${DOCKER_IMAGE}:build-${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
 
-                docker logout
-            '''
+                        docker logout
+                    '''
+                }
+            }
         }
-    }
-}
 
         stage('Docker Deploy') {
             steps {
-                echo '=== Deploying Docker container ==='
+                echo '=== Pulling image from Docker Hub and deploying ==='
 
-                sh '''
-                    docker stop java-devops-container || true
-                    docker rm java-devops-container || true
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockeerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
 
-                    docker run -d \
-                        --name java-devops-container \
-                        -p 8080:8080 \
-                        java-devops-demo:latest
-                '''
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USERNAME" \
+                            --password-stdin
 
-                sleep 10
+                        echo "=== Pulling image from Docker Hub ==="
+
+                        docker pull ${DOCKER_IMAGE}:build-${BUILD_NUMBER}
+
+                        echo "=== Removing old container ==="
+
+                        docker rm -f java-devops-container 2>/dev/null || true
+
+                        echo "=== Starting new container ==="
+
+                        docker run -d \
+                            --name java-devops-container \
+                            -p 8080:8080 \
+                            ${DOCKER_IMAGE}:build-${BUILD_NUMBER}
+
+                        docker logout
+
+                        sleep 10
+                    '''
+                }
             }
         }
 
@@ -71,19 +99,22 @@ pipeline {
                 echo '=== Health Check ==='
 
                 sh 'docker ps'
+
                 sh 'curl -f http://localhost:8080/hello'
             }
         }
     }
-    
-    post {
 
+    post {
         success {
             echo '=== CI/CD Pipeline Completed Successfully ==='
         }
 
         failure {
             echo '=== CI/CD Pipeline FAILED ==='
+        }
+    }
+}
         }
     }
 }
