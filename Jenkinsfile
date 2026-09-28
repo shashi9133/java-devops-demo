@@ -34,8 +34,12 @@ pipeline {
             sh '''
                 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-                docker tag java-devops-demo:latest $DOCKER_USERNAME/java-devops-demo:latest
+                docker tag java-devops-demo:latest $DOCKER_USERNAME/java-devops-demo:build-${BUILD_NUMBER}
 
+                docker push $DOCKER_USERNAME/java-devops-demo:build-${BUILD_NUMBER}
+                
+                docker tag java-devops-demo:latest $DOCKER_USERNAME/java-devops-demo:latest
+                
                 docker push $DOCKER_USERNAME/java-devops-demo:latest
 
                 docker logout
