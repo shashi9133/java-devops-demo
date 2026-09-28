@@ -19,6 +19,30 @@ pipeline {
                 sh 'docker build -t java-devops-demo:latest .'
             }
         }
+        
+        stage('Docker Push') {
+    steps {
+        echo '=== Pushing Docker image to Docker Hub ==='
+
+        withCredentials([
+            usernamePassword(
+                credentialsId: 'dockeerhub-credentials',
+                usernameVariable: 'DOCKER_USERNAME',
+                passwordVariable: 'DOCKER_PASSWORD'
+            )
+        ]) {
+            sh '''
+                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+                docker tag java-devops-demo:latest $DOCKER_USERNAME/java-devops-demo:latest
+
+                docker push $DOCKER_USERNAME/java-devops-demo:latest
+
+                docker logout
+            '''
+        }
+    }
+}
 
         stage('Docker Deploy') {
             steps {
